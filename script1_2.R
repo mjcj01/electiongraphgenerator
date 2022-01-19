@@ -21,15 +21,17 @@ districtnumber <- mgsub(electionresults$Area, c("District 1", "District 2", "Dis
                                                 "District 6", "District 7", "District 8", "District 9", "At Large"), 
                         c("1", "2", "3", "4", "5", "6", "7", "8", "9", "1"))
 
+### Combining data again
+
 electionresults <- cbind(districtnumber, electionresults_pre)
 
 electionresults$RepVotesMajorPercent <- as.numeric(electionresults$RepVotesMajorPercent)
 electionresults$DemVotesMajorPercent <- as.numeric(electionresults$DemVotesMajorPercent)
 electionresults$raceYear <- as.numeric(electionresults$raceYear)
 
-### Function time 😎
-
-### Actual function
+### Function time
+### This function will create a graph depending on which state, district, and party you put in. 
+### You can "Both" in and get the voteshare of both Democrats and Republicans in that district.
 
 districthistory <- function(RepState, RepDistrictNumber, RepParty) {
   if(RepParty == "Democrat") {
