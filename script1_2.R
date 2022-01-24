@@ -15,55 +15,119 @@ library(mgsub)
 
 electionresults_pre <- rbind(`2002_2020_data`, `1982_2000_data`, `1962_1980_data`, `1942_1960_data`, `1940_data`)
 
+electionresults_pre$raceYear <- as.numeric(electionresults_pre$raceYear)
+
+### Turning vote counts into numbers from character strings
+
+electionresults_pre$DemVotes <- as.numeric(gsub(",", "", electionresults_pre$DemVotes))
+electionresults_pre$DemVotes[is.na(electionresults_pre$DemVotes)] = 0
+
+electionresults_pre$RepVotes <- as.numeric(gsub(",", "", electionresults_pre$RepVotes))
+electionresults_pre$RepVotes[is.na(electionresults_pre$RepVotes)] = 0
+
+electionresults_pre$ThirdVotes <- as.numeric(gsub(",", "", electionresults_pre$ThirdVotes))
+electionresults_pre$ThirdVotes[is.na(electionresults_pre$ThirdVotes)] = 0
+
+electionresults_pre$OtherVotes <- as.numeric(gsub(",", "", electionresults_pre$OtherVotes))
+electionresults_pre$OtherVotes[is.na(electionresults_pre$OtherVotes)] = 0
+
+total_votes <- electionresults_pre$RepVotes + electionresults_pre$DemVotes + electionresults_pre$ThirdVotes +
+  electionresults_pre$OtherVotes
+
 ### Extracting the number from the Area column to make the function more user friendly
 
-districtnumber <- mgsub(electionresults$Area, c("District 1", "District 2", "District 3", "District 4", "District 5",
+districtnumber <- mgsub(electionresults_pre$Area, c("District 1", "District 2", "District 3", "District 4", "District 5",
                                                 "District 6", "District 7", "District 8", "District 9", "At Large"), 
                         c("1", "2", "3", "4", "5", "6", "7", "8", "9", "1"))
 
-### Combining data again
+demvotepercent <- electionresults_pre$DemVotes / total_votes * 100
+repvotepercent <- electionresults_pre$RepVotes / total_votes * 100
+othervotepercent <- (electionresults_pre$ThirdVotes + electionresults_pre$OtherVotes) / total_votes * 100
 
-electionresults <- cbind(districtnumber, electionresults_pre)
+electionresults <- cbind(districtnumber, electionresults_pre, demvotepercent, repvotepercent, othervotepercent)
 
-electionresults$RepVotesMajorPercent <- as.numeric(electionresults$RepVotesMajorPercent)
-electionresults$DemVotesMajorPercent <- as.numeric(electionresults$DemVotesMajorPercent)
-electionresults$raceYear <- as.numeric(electionresults$raceYear)
+### Function time 😎
 
-### Function time
-### This function will create a graph depending on which state, district, and party you put in. 
-### You can "Both" in and get the voteshare of both Democrats and Republicans in that district.
+### Actual function
 
 districthistory <- function(RepState, RepDistrictNumber, RepParty) {
   if(RepParty == "Democrat") {
     return(district <- filter(electionresults, State == RepState &
                                 districtnumber == RepDistrictNumber) %>%
-             ggplot(aes(x = raceYear, y = DemVotesMajorPercent)) +
-             geom_line(size = 2, color = "#00AEF3")+
+             ggplot(aes(x = raceYear, y = demvotepercent)) +
+             geom_line(size = 2, aes(color = "Democrats"))+
              labs() +
-             ggtitle(paste("Democrat's Voteshare in", RepState, "District", RepDistrictNumber)) +
+             ggtitle(paste("Democrats' Voteshare in", RepState, "District", RepDistrictNumber)) +
              theme_fivethirtyeight() +
-             scale_y_continuous(limits = c(0,100))
+             labs(subtitle = "Election data from 1940-2020") +
+             scale_y_continuous(limits = c(0,100)) +
+             scale_color_manual(name = "Political Parties",
+                                breaks = c("Democrats", "Republicans", "Other Parties"), 
+                                values = c("Democrats" = "#00AEF3", "Republicans" = "#E81B23", "Other Parties" = "#508C1B"))
            )
     district
   } else if(RepParty == "Republican") {
-    return(district1 <- filter(electionresults, State == RepState & 
+    return(district <- filter(electionresults, State == RepState & 
                                 districtnumber == RepDistrictNumber) %>%
-             ggplot(aes(x = raceYear, y = RepVotesMajorPercent)) +
-             geom_line(size = 2, color = "#E81B23") +
-             ggtitle(paste("Republican's Voteshare in", RepState, "District", RepDistrictNumber)) +
+             ggplot(aes(x = raceYear, y = repvotepercent)) +
+             geom_line(size = 2, aes(color = "Republicans")) +
+             ggtitle(paste("Republicans' Voteshare in", RepState, "District", RepDistrictNumber)) +
              theme_fivethirtyeight() +
-             scale_y_continuous(limits = c(0,100))
+             labs(subtitle = "Election data from 1940-2020") +
+             scale_y_continuous(limits = c(0,100)) +
+             scale_color_manual(name = "Political Parties",
+                                breaks = c("Democrats", "Republicans", "Other Parties"), 
+                                values = c("Democrats" = "#00AEF3", "Republicans" = "#E81B23", "Other Parties" = "#508C1B"))
            )
     district
+  } else if(RepParty == "Both") {
+    return(district <- filter(electionresults, State == RepState &
+                                 districtnumber == RepDistrictNumber) %>%
+             ggplot(aes(raceYear)) +
+             geom_line(aes(y = demvotepercent, color = "Democrat"), size = 2) +
+             geom_line(aes(y = repvotepercent, color = "Republican"), size = 2) +
+             ggtitle(paste("Both Parties' Voteshare in", RepState, "District", RepDistrictNumber)) +
+             theme_fivethirtyeight() +
+             labs(subtitle = "Election data from 1940-2020") +
+             scale_y_continuous(limits = c(0,100)) +
+             scale_color_manual(name = "Political Parties",
+                                breaks = c("Democrat", "Republican", "Other Parties"), 
+                                values = c("Democrat" = "#00AEF3", "Republican" = "#E81B23", "Other Parties" = "#508C1B"))
+           )
+    district
+  } else if(RepParty == "All") {
+    return(district <- filter(electionresults, State == RepState &
+                                 districtnumber == RepDistrictNumber) %>%
+             ggplot(aes(raceYear)) +
+             geom_line(aes(y = demvotepercent, color = "Democrat"), size = 1.5) +
+             geom_line(aes(y = repvotepercent, color = "Republican"), size = 1.5) +
+             geom_line(aes(y = othervotepercent, color = "Other Parties"), size = 1.5) +
+             ggtitle(paste("All Parties' Voteshare in", RepState, "District", RepDistrictNumber)) +
+             theme(legend.position = "bottom") +
+             theme_fivethirtyeight() +
+             labs(subtitle = "Election data from 1940-2020") +
+             scale_y_continuous(limits = c(0,100)) +
+             labs(color = "Political Parties") +
+             scale_color_manual(name = "Political Parties",
+                                breaks = c("Democrat", "Republican", "Other Parties"), 
+                                values = c("Democrat" = "#00AEF3", "Republican" = "#E81B23", "Other Parties" = "#508C1B"))
+          )
+    district
   } else {
-    return(district1 <- filter(electionresults, electionresults$State == RepState &
+    return(district <- filter(electionresults, electionresults$State == RepState &
                                 electionresults$District == RepDistrictNumber) %>%
-             ggplot(aes(x = electionresults$raceYear, y = other_voteshare)) +
-             geom_line(size = 2, color = "#508C1B") +
+             ggplot(aes(x = electionresults$raceYear, y = othervotepercent)) +
+             geom_line(size = 2, color = "Other Parties") +
              ggtitle(paste("Additional Parties' Voteshare in", RepState, "District", RepDistrictNumber)) +
              theme_fivethirtyeight() +
-             scale_y_continuous(limits = c(0,100))
+             labs(subtitle = "Election data from 1940-2020") +
+             scale_y_continuous(limits = c(0,100)) +
+             scale_color_manual(name = "Political Parties",
+                                breaks = c("Democrat", "Republican", "Other Parties"), 
+                                values = c("Democrat" = "#00AEF3", "Republican" = "#E81B23", "Other Parties" = "#508C1B"))
            )
     district
   }
 }
+
+
